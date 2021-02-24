@@ -87,6 +87,7 @@ def main():
     with open(filename, "r") as f:
         nb = json.load(f)
 
+    _METADATA["language"] = nb["metadata"]["kernelspec"]["language"]
     parse_metadata()
     notebook = Notebook(parse_nb(nb))
 

@@ -40,16 +40,25 @@ def parse_nb_cell(cell):
 
 def parse_nb_output(output):
     if output["output_type"] == "stream":
-        return TextOutputCell(output["text"])
+        return CodeCell(output["text"])
     elif output["output_type"] == "error":
         return ErrorOutputCell(output["traceback"])
     elif output["output_type"] == "display_data":
-        for k, v in output["data"].items():
-            if k == "image/png":
-                return DisplayOutputCell(v, "png")
+        im = output["data"].get("image/png", None)
+        if im is not None:
+            return DisplayOutputCell(im, "png")
 
         # if there is no png, just return a blank line
         return BlankCell(1)
+    elif output["output_type"] == "execute_result":
+        json = output["data"].get("application/json", None)
+        if json is not None:
+            return CodeCell(str(json))
+
+        # if we didn't find anything else, return the text
+        text = output["data"].get("text/plain", None)
+        if text is not None:
+            return TextOutputCell(text)
     return None
 
 def reparse_nb(json_notebook, parsed_notebook):

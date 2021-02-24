@@ -70,7 +70,6 @@ class Notebook:
         for k, v in self.cell_displays.items():
 
             if k + v.n_lines > start and k < start:
-                # breakpoint()
                 # only part of the cell is showing
                 truncated_cell = v.truncate(start - k)
 
@@ -98,7 +97,7 @@ class Notebook:
                 elif isinstance(v, DisplayOutputCell) and k + v.n_lines > end:
                     # Normally, in the case of bottom truncation, we push the
                     # entire renderable on, and let Rich handle the cropping.
-                    # However, since plot and traceback drawing is done separately,
+                    # However, since plot drawing is done separately,
                     # we have to handle bottom truncation of images ourselves.
                     truncated_cell = v.truncate_bottom(end - k)
 
@@ -124,8 +123,11 @@ def render_cell(cell):
                       background_color="default")
     elif isinstance(cell, MDCell):
         return Markdown(cell.text)
-    elif isinstance(cell, TextCell): # CodeCell or TextOutputCell
-        return Syntax(cell.text, "python", background_color="default")
+    elif isinstance(cell, CodeCell):
+        return Syntax(cell.text, _METADATA["language"],
+                background_color="default")
+    elif isinstance(cell, TextOutputCell):
+        return Text(cell.text)
     elif isinstance(cell, DisplayOutputCell):
         # draw a large blank space for the plot to fit into
         return Syntax(" \n" * (cell.n_lines - 3), "python",

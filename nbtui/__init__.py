@@ -1,3 +1,3 @@
 _METADATA = {}
-_CAN_PARSE = set(["stream", "error", "error"])
+_CAN_PARSE = set(["stream", "error", "execute_result"])
 
