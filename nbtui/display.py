@@ -21,9 +21,10 @@ class Notebook:
         self.cell_displays = {}
         self.cell_renders = {}
         self.plots_todraw = []
+
         # which line is currently at the top
         self.row = 0
-        self.lock = False
+        self.search_pat = None
         self.needs_redraw = False
 
         display_row = 0
@@ -69,6 +70,7 @@ class Notebook:
         for k, v in self.cell_displays.items():
 
             if k + v.n_lines > start and k < start:
+                # breakpoint()
                 # only part of the cell is showing
                 truncated_cell = v.truncate(start - k)
 
