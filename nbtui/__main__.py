@@ -16,13 +16,15 @@ from watchgod import run_process, RegExpWatcher
 from nbtui import _METADATA, _CAN_PARSE
 from nbtui.display import display_notebook, Notebook
 from nbtui.parser import parse_nb, reparse_nb
-from nbtui.user_input import get_char, handle_input
+from nbtui.user_input import SetTermAttrs, get_char, handle_input
+
+def check_resized():
+    term_width, term_height= os.get_terminal_size()
+    return (term_width != _METADATA.get("term_width", None) or
+            term_height != _METADATA.get("term_height", None))
 
 def parse_metadata():
     term_width, term_height= os.get_terminal_size()
-    if (term_width == _METADATA.get("term_width", None) and 
-        term_height == _METADATA.get("term_height", None)):
-        return
 
     buf = array.array('H', [0, 0, 0, 0])
     fcntl.ioctl(sys.stdout, termios.TIOCGWINSZ, buf)
@@ -31,7 +33,6 @@ def parse_metadata():
 
     if screen_height != 0 and screen_width != 0:
         _CAN_PARSE.add("display_data")
-
 
     pixels_per_row = screen_height / term_height
     pixels_per_col = screen_width / term_width
@@ -43,7 +44,7 @@ def parse_metadata():
     _METADATA["pix_per_row"] = pixels_per_row
     _METADATA["pix_per_col"] = pixels_per_col
 
-def worker(queue, filename):
+def filewatch_worker(queue, filename):
 
     def on_changed(queue, filename):
         with open(filename, "r") as f:
@@ -58,6 +59,20 @@ def worker(queue, filename):
     run_process(start_dir, on_changed, watcher_cls = RegExpWatcher,
             watcher_kwargs = {"re_files": filename},
             args=(queue, filename))
+
+def input_worker(in_queue, out_queue):
+    sys.stdin = open(0)
+    fd = sys.stdin.fileno()
+    while True:
+        with SetTermAttrs(fd):
+            c = get_char()
+            in_queue.put(c)
+
+        # Block until main proc has processed the keypress
+        # this is so we don't clobber stdin for things like searching,
+        # where the user types additional characters after the inital
+        # press of /
+        _ = out_queue.get()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -75,26 +90,29 @@ def main():
     parse_metadata()
     notebook = Notebook(parse_nb(nb))
 
-    queue = mp.Queue()
-    p = mp.Process(target=worker, daemon=True, args=(queue, filename))
-    p.start()
+    filewatch_queue = mp.Queue()
+    filewatch_p = mp.Process(target=filewatch_worker, daemon=True,
+                             args=(filewatch_queue, filename))
+    filewatch_p.start()
+
+    input_queue = mp.Queue()
+    out_queue = mp.Queue()
+    input_p = mp.Process(target=input_worker, daemon=True,
+                         args=(input_queue, out_queue))
+    input_p.start()
 
     rendered_cells = display_notebook(notebook)
 
-    stop = False
     with Live(transient=True,
               auto_refresh=False,
               vertical_overflow="crop",
               redirect_stdout=False) as live:
 
-
         live.update(rendered_cells, refresh=True)
         notebook.draw_plots()
+        char = ''
+        stop = False
         while not stop:
-            if not queue.empty():
-                new_nb = queue.get()
-                reparse_nb(new_nb, notebook)
-
             if notebook.needs_redraw:
                 rendered_cells = display_notebook(notebook)
 
@@ -102,15 +120,25 @@ def main():
                 live.update(rendered_cells, refresh=True)
                 notebook.draw_plots()
 
-            char = get_char()
+            if not filewatch_queue.empty():
+                new_nb = filewatch_queue.get()
+                reparse_nb(new_nb, notebook)
 
-            # TODO: We really only need to reparse metadata on resize,
-            # instead of in every loop.
-            parse_metadata()
-            stop = handle_input(char, notebook)
+            if not input_queue.empty():
+                char = input_queue.get()
+                stop = handle_input(char, notebook)
+                # signal that the keypress was handled
+                out_queue.put(1)
 
-    queue.close()
-    p.join()
+            if check_resized():
+                parse_metadata()
+                notebook.needs_redraw = True
+
+    filewatch_queue.close()
+    input_queue.close()
+
+    # processes will be automatically closed, since they were initialized
+    # as daemons
     sys.stdout.buffer.write(b"\x1b[2J\x1b[H")
 
 if __name__ == "__main__":

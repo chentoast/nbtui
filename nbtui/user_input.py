@@ -6,47 +6,36 @@ import signal
 import sys
 import termios
 
-from rich.prompt import Prompt
-
 from nbtui import _METADATA
 from nbtui.parser import TextCell
 from nbtui.display import display_notebook
 
-# Taken from https://www.jujens.eu/posts/en/2018/Jun/02/python-timeout-function/
-@contextmanager
-def timeout(secs):
-    def raise_error(signum, frame):
-        raise TimeoutError
+class SetTermAttrs:
+    def __init__(self, fd):
+        self.fd = fd
 
-    signal.signal(signal.SIGALRM, raise_error)
-    signal.alarm(secs)
+    def __enter__(self):
+        self.oldattr = termios.tcgetattr(self.fd)
+        newattr = termios.tcgetattr(self.fd)
 
-    try:
-        yield
-    except TimeoutError:
-        pass
-    finally:
-        # Unregister the signal so it won't be triggered
-        # if the timeout is not reached.
-        signal.signal(signal.SIGALRM, signal.SIG_IGN)
+        # Disable CANONICAL and ECHO modes for stdin lflags, so 
+        # that input becomes available immediately, instaed of after
+        # newline
+        newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+        termios.tcsetattr(self.fd, termios.TCSANOW, newattr)
+
+        signal.signal(signal.SIGINT, self._sigint_handler)
+
+    def __exit__(self, type, value, traceback):
+        termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.oldattr)
+
+    def _sigint_handler(self, signal_recv, frame):
+        self.__exit__(None, None, None)
+
+        sys.exit(0)
 
 def get_char():
-    fd = sys.stdin.fileno()
-
-    oldterm = termios.tcgetattr(fd)
-    newattr = termios.tcgetattr(fd)
-    # Disable CANONICAL and ECHO modes for stdin lflags, so 
-    # that input becomes available immediately, instaed of after
-    # newline
-    newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
-    termios.tcsetattr(fd, termios.TCSANOW, newattr)
-
-    c = None
-    with timeout(1):
-        c = sys.stdin.read(1)
-
-    termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
-
+    c = sys.stdin.read(1)
     return c if c else ""
 
 def scroll(n, notebook):
