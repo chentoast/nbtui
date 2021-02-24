@@ -14,9 +14,9 @@ from rich.live import Live
 from watchgod import run_process, RegExpWatcher
 
 from nbtui import _METADATA, _CAN_PARSE
-from display import display_notebook, Notebook
-from parser import parse_nb, reparse_nb
-from user_input import get_char, handle_input
+from nbtui.display import display_notebook, Notebook
+from nbtui.parser import parse_nb, reparse_nb
+from nbtui.user_input import get_char, handle_input
 
 def parse_metadata():
     term_width, term_height= os.get_terminal_size()
@@ -59,7 +59,13 @@ def worker(queue, filename):
             watcher_kwargs = {"re_files": filename},
             args=(queue, filename))
 
-def main(filename):
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("filename", type=str)
+    args = parser.parse_args()
+
+    filename = args.filename
+
     if filename[-6:] != ".ipynb":
         raise Exception("Only accepts jupyter notebooks")
     
@@ -108,8 +114,4 @@ def main(filename):
     sys.stdout.buffer.write(b"\x1b[2J\x1b[H")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("filename", type=str)
-    args = parser.parse_args()
-
-    main(args.filename)
+    main()

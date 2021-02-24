@@ -10,7 +10,7 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 from nbtui import _METADATA
-from parser import (TextCell, MDCell, CodeCell, TextOutputCell,
+from nbtui.parser import (TextCell, MDCell, CodeCell, TextOutputCell,
                     DisplayOutputCell, BlankCell, ErrorOutputCell)
 
 _RULE = rich.rule.Rule(style="white", end="")

@@ -6,6 +6,7 @@ import logging
 import re
 
 from PIL import Image
+
 from nbtui import _METADATA, _CAN_PARSE
 
 def parse_nb(json_notebook):
@@ -228,15 +229,23 @@ class DisplayOutputCell:
 
         # note - PIL sizes are (width x height)
         self.img = Image.open(io.BytesIO(decodebytes(b64)))
-        width = min(ceil(self.img.size[0] / _METADATA["pix_per_col"]), 80)
-        height = min(ceil(self.img.size[1] / _METADATA["pix_per_row"]), 30)
+        width = self.img.size[0]
+        height = self.img.size[1]
 
-        if width == 80 or height == 30:
-            self.img = self.img.resize((floor(width * _METADATA["pix_per_col"]), 
-                                        floor(height * _METADATA["pix_per_row"])))
+        if (width >= (_METADATA["term_width"] / 1.5) *
+                _METADATA["pix_per_col"] or 
+            height >= (_METADATA["term_height"] / 1.5) *
+                _METADATA["pix_per_row"]):
+
+            width = min(width, floor((_METADATA["term_width"] / 1.5) *
+                                     _METADATA["pix_per_col"]))
+            height = min(height, floor((_METADATA["term_height"] / 1.5) *
+                                       _METADATA["pix_per_row"]))
+            self.img = self.img.resize((width, height))
             self.b64 = self.img_to_b64(self.img)
 
-        self.size = (height, width)
+        self.size = (ceil(height / _METADATA["pix_per_row"]),
+                     ceil(width / _METADATA["pix_per_col"]))
         self.n_lines = self.size[0] + 5
         self.pad = True
 

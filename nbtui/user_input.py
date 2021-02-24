@@ -8,9 +8,9 @@ import termios
 
 from rich.prompt import Prompt
 
-from parser import TextCell
-from display import display_notebook
 from nbtui import _METADATA
+from nbtui.parser import TextCell
+from nbtui.display import display_notebook
 
 # Taken from https://www.jujens.eu/posts/en/2018/Jun/02/python-timeout-function/
 @contextmanager
