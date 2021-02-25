@@ -85,7 +85,6 @@ class Notebook:
                             max(3, 5 - (start - k)))
 
             elif k >= start and k <= end:
-
                 if self.cell_renders.get(k, None) is None:
                     self.cell_renders[k] = pad_renderable(
                             render_cell(self.cell_displays[k]), 0)

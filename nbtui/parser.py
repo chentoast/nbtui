@@ -23,7 +23,6 @@ def parse_nb(json_notebook):
         if cell.get("outputs", None) is not None:
             for output in cell["outputs"]:
                 if output["output_type"] not in _CAN_PARSE:
-                    # parsed_cells.append(BlankCell(1))
                     continue
 
                 output_cell = parse_nb_output(output)
@@ -53,7 +52,7 @@ def parse_nb_output(output):
     elif output["output_type"] == "execute_result":
         json = output["data"].get("application/json", None)
         if json is not None:
-            return CodeCell(str(json))
+            return CodeCell([str(json)])
 
         # if we didn't find anything else, return the text
         text = output["data"].get("text/plain", None)
@@ -80,7 +79,7 @@ def reparse_nb(json_notebook, parsed_notebook):
         else:
             new_cell = parse_nb_cell(cell)
             offset += new_cell.n_lines - old_cell.n_lines
-            new_display_line = offset
+            new_display_line = offset + display_line
             # The display row of the first cell doesn't change
             if display_line == 0:
                 new_display_line = 0
@@ -92,6 +91,7 @@ def reparse_nb(json_notebook, parsed_notebook):
                     continue
 
                 display_line, old_output = parsed_cells.pop(0)
+                # breakpoint()
                 if old_output.compare(output):
                     new_cells[display_line + offset] = old_output
                 else:
@@ -135,11 +135,23 @@ class TextCell:
         return type(self)(truncated_lines)
 
     def compare(self, cell):
-        try:
-            other_text = "".join(cell["source"])
-        except:
-            other_text = "".join(cell["text"])
-        return self.for_compare == hash(other_text)
+        return self.for_compare == hash(TextCell.get_text_from_json(cell))
+
+    @staticmethod
+    def get_text_from_json(json_cell):
+        if json_cell.get("cell_type", None) in ("code", "markdown"):
+            return "".join(json_cell["source"])
+
+        # must be an output cell
+        if json_cell["output_type"] == "stream":
+            return "".join(json_cell["text"])
+
+        # must be execute_result
+        json = json_cell["data"].get("application/json", None)
+        if json is not None:
+            return str(json)
+
+        return "".join(json_cell["data"]["text/plain"])
 
 class MDCell(TextCell):
     pass
@@ -186,14 +198,12 @@ class ErrorOutputCell:
                     entry = entry.replace(color, markup)
 
                 rows = entry.split("\n")
-                # breakpoint()
                 for row in rows:
                     row = self.fix_markup(row)
                     self.traceback.append(row if row != "\n" else " \n")
         else:
             self.traceback = traceback
 
-        # breakpoint()
         self.tb_text = "\n".join(self.traceback)
         self.n_lines = len(self.traceback) + 3
 

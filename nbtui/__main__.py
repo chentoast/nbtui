@@ -92,7 +92,7 @@ def main():
     notebook = Notebook(parse_nb(nb))
 
     filewatch_queue = mp.Queue()
-    filewatch_p = mp.Process(target=filewatch_worker, daemon=True,
+    filewatch_p = mp.Process(target=filewatch_worker,
                              args=(filewatch_queue, filename))
     filewatch_p.start()
 
@@ -138,8 +138,10 @@ def main():
     filewatch_queue.close()
     input_queue.close()
 
-    # processes will be automatically closed, since they were initialized
-    # as daemons
+    # input subproc will be automatically closed, since it was initialized
+    # as a daemon
+    filewatch_p.terminate()
+    filewatch_p.join()
     sys.stdout.buffer.write(b"\x1b[2J\x1b[H")
 
 if __name__ == "__main__":
