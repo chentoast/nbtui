@@ -13,7 +13,7 @@ import rich
 from rich.live import Live
 from watchgod import run_process, RegExpWatcher
 
-from nbtui import _METADATA, _CAN_PARSE
+from nbtui import _METADATA
 from nbtui.display import display_notebook, Notebook
 from nbtui.parser import parse_nb, reparse_nb
 from nbtui.user_input import SetTermAttrs, get_char, handle_input
@@ -31,8 +31,9 @@ def parse_metadata():
     screen_width = buf[2]
     screen_height = buf[3]
 
+    _METADATA["img_support"] = False
     if screen_height != 0 and screen_width != 0:
-        _CAN_PARSE.add("display_data")
+        _METADATA["img_support"] = True
 
     pixels_per_row = screen_height / term_height
     pixels_per_col = screen_width / term_width
@@ -123,7 +124,7 @@ def main():
 
             if not filewatch_queue.empty():
                 new_nb = filewatch_queue.get()
-                reparse_nb(new_nb, notebook)
+                notebook = reparse_nb(new_nb, notebook)
 
             if not input_queue.empty():
                 char = input_queue.get()

@@ -15,7 +15,6 @@ from nbtui.parser import (TextCell, MDCell, CodeCell, TextOutputCell,
 
 _RULE = rich.rule.Rule(style="white", end="")
 
-
 class Notebook:
     def __init__(self, cells):
         self.cell_displays = {}
@@ -114,7 +113,6 @@ def display_notebook(notebook):
     notebook.needs_redraw = False
 
     return Panel(RenderGroup(*renders))
-
 
 def render_cell(cell):
     if isinstance(cell, BlankCell):

@@ -7,7 +7,8 @@ import re
 
 from PIL import Image
 
-from nbtui import _METADATA, _CAN_PARSE
+from nbtui import _METADATA
+import nbtui.display
 
 def parse_nb(json_notebook):
     """
@@ -22,9 +23,6 @@ def parse_nb(json_notebook):
         # break up cells and outputs into distinct units
         if cell.get("outputs", None) is not None:
             for output in cell["outputs"]:
-                if output["output_type"] not in _CAN_PARSE:
-                    continue
-
                 output_cell = parse_nb_output(output)
                 if output_cell is not None:
                     parsed_cells.append(output_cell)
@@ -43,13 +41,17 @@ def parse_nb_output(output):
     elif output["output_type"] == "error":
         return ErrorOutputCell(output["traceback"])
     elif output["output_type"] == "display_data":
-        im = output["data"].get("image/png", None)
+        im = try_parse_image(output)
         if im is not None:
             return DisplayOutputCell(im, "png")
 
         # if there is no png, just return a blank line
         return BlankCell(1)
     elif output["output_type"] == "execute_result":
+        im = try_parse_image(output)
+        if im is not None:
+            return DisplayOutputCell(im, "png")
+
         json = output["data"].get("application/json", None)
         if json is not None:
             return CodeCell([str(json)])
@@ -58,7 +60,9 @@ def parse_nb_output(output):
         text = output["data"].get("text/plain", None)
         if text is not None:
             return TextOutputCell(text)
-    return None
+    raise Exception(
+            f"Encountered unparsable cell output type {output['output_type']}"
+            )
 
 def reparse_nb(json_notebook, parsed_notebook):
     """
@@ -66,7 +70,24 @@ def reparse_nb(json_notebook, parsed_notebook):
     reparse the notebook and update any changes.
     For now, re-render everything on change
     """
+    num_cells = 0
+
+    for cell in json_notebook["cells"]:
+        num_cells += 1
+        try:
+            num_cells += len(cell["outputs"])
+        except:
+            pass
+
+    if num_cells != len(parsed_notebook.cell_displays):
+        # TODO: Can we avoid reparsing the entire notebook
+        # whenever a cell is added/deleted?
+        new_nb = nbtui.display.Notebook(parse_nb(json_notebook))
+        new_nb.needs_redraw = True
+        return new_nb
+
     json_notebook = json_notebook["cells"]
+
     parsed_cells = list(parsed_notebook.cell_displays.items())
 
     offset = 0
@@ -87,8 +108,6 @@ def reparse_nb(json_notebook, parsed_notebook):
 
         if cell.get("outputs", None) is not None:
             for output in cell["outputs"]:
-                if output["output_type"] not in _CAN_PARSE:
-                    continue
 
                 display_line, old_output = parsed_cells.pop(0)
                 # breakpoint()
@@ -102,6 +121,14 @@ def reparse_nb(json_notebook, parsed_notebook):
     parsed_notebook.cell_displays = new_cells
     parsed_notebook.cell_renders = {}
     parsed_notebook.needs_redraw = True
+
+    return parsed_notebook
+
+def try_parse_image(cell):
+    if not _METADATA["img_support"]:
+        return None
+
+    return cell["data"].get("image/png", None)
 
 class BlankCell:
     pad = False
