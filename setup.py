@@ -14,5 +14,10 @@ setuptools.setup(
     long_description_content="text/markdown",
     url="github.com/chentau/jupyterm",
     packages=setuptools.find_packages(),
+    entry_points={
+            "console_scripts": [
+                    "nbtui=nbtui.__main__:main"
+                ]
+        },
     python_requires='>=3.6',
 )
