@@ -41,35 +41,45 @@ def get_char():
 def scroll(n, notebook):
     if notebook.row + n <= 0:
         notebook.row = 0
-    elif notebook.row + n >=notebook.size - _METADATA["term_height"]:
-        notebook.row = notebook.size - _METADATA["term_height"]
+    # the + 2 is for the two extra rows from rich.Panel
+    elif notebook.row + n > notebook.size + 2 - _METADATA["term_height"]:
+        notebook.row = notebook.size + 2 - _METADATA["term_height"]
     else:
         notebook.row += n
     return False
 
 def goto(row, notebook):
     # clamp to end of notebook
-    row = min(row, notebook.size - _METADATA["term_height"])
+    row = min(row, notebook.size + 2 - _METADATA["term_height"])
 
     # negative values indicate end of notebook
     if row < 0:
-        row = max(notebook.size - _METADATA["term_height"], 0)
+        row = notebook.size + 2 - _METADATA["term_height"]
 
     notebook.row = row
     return False
 
-def search(get_next, notebook):
+def search(forward, notebook):
     # place cursor at bottom of screen
-    sys.stdout.buffer.write(b'\033F/')
+    if forward == True:
+        sys.stdout.buffer.write(b'\033[999;1H/')
+    else:
+        sys.stdout.buffer.write(b'\033[999;1H?')
+
     search_pat = ".*?" + input("")
-    # search_pat = Prompt().ask("/")
     search_pat = re.compile(search_pat)
 
     notebook.search_pat = search_pat
 
-    return get_next(notebook)
+    if forward == True:
+        return search_next(notebook)
+    else:
+        return search_prev(notebook)
 
 def search_next(notebook):
+    if notebook.search_pat is None:
+        return False
+
     for line, cell in notebook.cell_displays.items():
         if line + cell.n_lines < notebook.row:
             continue
@@ -81,13 +91,17 @@ def search_next(notebook):
             offset = next(i for i, l in enumerate(cell.text_lines) if
                           (notebook.search_pat.match(l) and
                               i + line > notebook.row))
-            # breakpoint()
             goto(line + offset + 2, notebook)
             return False
         except StopIteration:
             continue
 
+    return False
+
 def search_prev(notebook):
+    if notebook.search_pat is None:
+        return False
+
     for line, cell in reversed(notebook.cell_displays.items()):
         # Skip to the next if we are on the first line of a cell
         if line > notebook.row - 3:
@@ -105,6 +119,8 @@ def search_prev(notebook):
         except StopIteration:
             continue
 
+    return False
+
 def exit(_):
     return True
 
@@ -115,7 +131,8 @@ input_dict = {
             '\x15': partial(scroll, -15), # CTRL-U
             "G": partial(goto, -1),
             "g": partial(goto, 0),
-            "/": partial(search, search_next),
+            "/": partial(search, True),
+            "?": partial(search, False),
             "n": search_next,
             "N": search_prev,
             'q': exit,

@@ -1,7 +1,7 @@
 - TODO Other display formats besides png
-- TODO Folding
-- TODO Background color of plots
 - TODO Configuration
+- TODO Documentation
+- TODO Folding
 - WAITING Slow scrolling when images are on the screen
 - DONE Search
 - DONE Fail gracefully when terminal doesn't support images
