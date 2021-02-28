@@ -1,6 +1,6 @@
 # NBTui
 
-![demo][../assets/demo.gif?raw=true]
+![demo](../assets/demo.gif?raw=true)
 
 An interactive viewer for Jupyter notebooks from the command line.
 
