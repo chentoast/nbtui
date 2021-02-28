@@ -1,5 +1,7 @@
 # NBTui
 
+![demo][../assets/demo.gif?raw=true]
+
 An interactive viewer for Jupyter notebooks from the command line.
 
 It should work for any terminal, but you will only be able to view
