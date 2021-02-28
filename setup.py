@@ -3,9 +3,13 @@ import setuptools
 with open("README.md", "r") as f:
     desc = f.read()
 
+requirements = []
+with open("requirements.txt", "r") as f:
+    requirements = f.read().splitlines()
+
 setuptools.setup(
     name="nbtui",
-    version="0.0.1",
+    version="0.0.2",
     author="Tony Chen",
     author_email="tchen1998@gmail.com",
     description="View jupyter notebooks (with images) from the command line",
@@ -19,4 +23,5 @@ setuptools.setup(
                 ]
         },
     python_requires='>=3.6',
+    install_requires = requirements
 )
