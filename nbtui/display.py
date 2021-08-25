@@ -10,15 +10,17 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 from nbtui import _METADATA
-from nbtui.parser import (TextCell, MDCell, CodeCell, TextOutputCell,
-                    DisplayOutputCell, BlankCell, ErrorOutputCell)
+from nbtui.cells import CodeCell, DisplayOutputCell
 
 _RULE = rich.rule.Rule(style="white", end="")
 
 class Notebook:
     def __init__(self, cells):
+        # dictionary of all cells, indexed by line number
         self.cell_displays = {}
+        # cached renders of all fully visible cells
         self.cell_renders = {}
+        # plots that need to be drawn
         self.plots_todraw = []
 
         # which line is currently at the top
@@ -72,7 +74,7 @@ class Notebook:
                 # only part of the cell is showing
                 truncated_cell = v.truncate(start - k)
 
-                renderable = render_cell(truncated_cell)
+                renderable = truncated_cell.render(-1)
 
                 if truncated_cell.pad:
                     renderable = pad_renderable(renderable, start - k)
@@ -86,7 +88,7 @@ class Notebook:
             elif k >= start and k <= end:
                 if self.cell_renders.get(k, None) is None:
                     self.cell_renders[k] = pad_renderable(
-                            render_cell(self.cell_displays[k]), 0)
+                            self.cell_displays[k].render(-1), 0)
 
                 renders.append(self.cell_renders[k])
 
@@ -114,27 +116,6 @@ def display_notebook(notebook):
 
     return Panel(RenderGroup(*renders))
 
-def render_cell(cell):
-    if isinstance(cell, BlankCell):
-        return Syntax(" \n" * cell.n_lines, "python",
-                      background_color="default")
-    elif isinstance(cell, MDCell):
-        return Markdown(cell.text)
-    elif isinstance(cell, CodeCell):
-        return Syntax(cell.text, _METADATA["language"],
-                background_color="default")
-    elif isinstance(cell, TextOutputCell):
-        return Text(cell.text)
-    elif isinstance(cell, DisplayOutputCell):
-        # draw a large blank space for the plot to fit into
-        return Syntax(" \n" * (cell.n_lines - 3), "python",
-            background_color="default")
-    elif isinstance(cell, ErrorOutputCell):
-        return Text.from_markup(cell.tb_text)
-    else:
-        assert False
-
-
 def pad_renderable(renderable, offset):
     """
     Pad a renderable, subject to a particular truncation offset.
@@ -152,8 +133,6 @@ def display_image(image, position, size):
     """
     Takes a base 64 encoded image string, and displays it on the screen
     using the kitty graphics protocol.
-
-    image: base 64 encoded png
     """
     # move cursor
     sys.stdout.buffer.write(b'\033[%d;%dH' % position)
