@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as f:
 
 setuptools.setup(
     name="nbtui",
-    version="0.0.2",
+    version="0.0.3",
     author="Tony Chen",
     author_email="tchen1998@gmail.com",
     description="View jupyter notebooks (with images) from the command line",
